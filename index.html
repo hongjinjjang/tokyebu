@@ -115,6 +115,7 @@ input:focus { outline:none; border-color:var(--key); }
        border-radius:8px; padding:10px 11px; font:inherit; font-size:15px; }
 .fin:focus { outline:none; border-color:var(--key); }
 .fin::placeholder { color:var(--dimmer); }
+textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; max-height:220px; overflow-y:auto; }
 .two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .chips { display:flex; flex-wrap:wrap; gap:5px; }
 .chip { border:1px solid var(--line); background:transparent; color:var(--dim); padding:6px 11px; font-size:12.5px; border-radius:20px; }
@@ -264,7 +265,7 @@ input:focus { outline:none; border-color:var(--key); }
           <label class="f"><span>일자</span><input class="fin" type="date" id="f-date" /></label>
           <div class="f"><span>종목</span><div class="chips" id="chips"></div></div>
           <label class="f"><span>메모</span>
-            <input class="fin" type="text" id="f-memo" placeholder="배팅 내역" autocomplete="off" />
+            <textarea class="fin" id="f-memo" rows="1" placeholder="배팅 내역" autocomplete="off"></textarea>
           </label>
           <div class="two">
             <label class="f"><span>배팅금액</span>
@@ -467,9 +468,17 @@ $('status').addEventListener('click', e => {
   status = b.dataset.s; drawStatus();
 });
 
+function growMemo(){
+  const el = $('f-memo');
+  const cs = getComputedStyle(el);
+  const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight + border) + 'px';
+}
 $('f-memo').addEventListener('input', e => {
   const m = e.target.value.match(/^\s*[\[［]([^\]］]{1,8})[\]］]\s*/);
   if (m) { cat = m[1].trim(); e.target.value = e.target.value.slice(m[0].length); drawChips(); }
+  growMemo();
 });
 
 const numOnly = v => v.replace(/[^0-9]/g,'');
@@ -503,7 +512,11 @@ $('quick').addEventListener('click', e => {
   $('f-stake').dispatchEvent(new Event('input'));
 });
 
-$('form').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+$('form').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (e.target === $('f-memo') && e.shiftKey) return;
+  e.preventDefault(); save();
+});
 $('save').addEventListener('click', save);
 $('cancel').addEventListener('click', () => resetForm());
 
@@ -533,7 +546,7 @@ function resetForm(){
   $('f-memo').value = ''; $('f-stake').value = ''; $('f-odds').value = ''; $('f-payout').value = '';
   $('form-title').textContent = '빠른 입력'; $('form-hint').textContent = 'Enter로 저장';
   $('save').textContent = '기록 추가'; $('cancel').classList.add('hidden');
-  drawStatus(); drawCalc(); drawChips();
+  drawStatus(); drawCalc(); drawChips(); growMemo();
 }
 
 function edit(id){
@@ -544,7 +557,7 @@ function edit(id){
   $('f-payout').value = b.payout || b.expect || '';
   $('form-title').textContent = '기록 수정'; $('form-hint').textContent = '수정 중';
   $('save').textContent = '수정 저장'; $('cancel').classList.remove('hidden');
-  drawChips(); drawStatus(); drawCalc();
+  drawChips(); drawStatus(); drawCalc(); growMemo();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 

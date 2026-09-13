@@ -252,6 +252,8 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
     <input type="date" id="to" />
   </div>
 
+  <div class="chips" id="tagfilter" style="margin:0 0 18px"></div>
+
   <section class="hero">
     <div>
       <div class="total-label">기간 수익</div>
@@ -378,7 +380,7 @@ function toast(msg){
 /* ---------------- 상태 ---------------- */
 let bets = [];
 let from = monthRange(0)[0], to = monthRange(0)[1];
-let cat = 'LOL', tags = [], status = 'pending', editId = null, busy = false;
+let cat = 'LOL', tags = [], tagFilter = [], status = 'pending', editId = null, busy = false;
 
 /* ---------------- 로그인 ---------------- */
 $('do-login').addEventListener('click', () => auth('in'));
@@ -491,6 +493,20 @@ function drawTagChips(){
     return `<button class="chip" data-c="${esc(c)}" ${st}>${esc(c)}</button>`;
   }).join('');
 }
+function drawTagFilter(){
+  $('tagfilter').innerHTML = catList().map(c => {
+    const on = tagFilter.includes(c);
+    const st = on ? `style="color:${catColor(c)};border-color:${catColor(c)};background:${tint(catColor(c),.12)}"` : '';
+    return `<button class="chip" data-c="${esc(c)}" ${st}>${esc(c)}</button>`;
+  }).join('');
+}
+$('tagfilter').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  const c = b.dataset.c;
+  tagFilter = tagFilter.includes(c) ? tagFilter.filter(t => t !== c) : [...tagFilter, c];
+  render();
+});
+
 $('tagchips').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   const c = b.dataset.c;
@@ -628,7 +644,8 @@ $('list').addEventListener('click', async e => {
 
 /* ---------------- 렌더 ---------------- */
 function render(){
-  const view = bets.filter(b => (!from || b.date >= from) && (!to || b.date <= to));
+  const view = bets.filter(b => (!from || b.date >= from) && (!to || b.date <= to))
+    .filter(b => !tagFilter.length || tagFilter.some(t => b.cat === t || (b.tags||[]).includes(t)));
   $('listcount').textContent = view.length + '건';
 
   const done = view.filter(b => b.status !== 'pending');
@@ -652,6 +669,7 @@ function render(){
   drawCats(view);
   drawList(view);
   drawChips();
+  drawTagFilter();
 }
 
 function drawChart(view, profit){

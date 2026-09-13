@@ -144,7 +144,9 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
 .row { display:grid; grid-template-columns:68px 1fr 92px 92px 104px 62px; align-items:center; gap:10px;
        padding:11px 18px; border-bottom:1px solid var(--line); font-size:13.5px; }
 .row:last-child { border-bottom:0; }
+.row > span:first-child { display:flex; flex-wrap:wrap; gap:4px; }
 .tag { display:inline-block; font-size:11.5px; font-weight:600; padding:3px 8px; border-radius:5px; white-space:nowrap; }
+.tag.sub-tag { font-weight:500; opacity:.8; }
 .memo { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .memo i { font-style:normal; color:var(--dimmer); font-size:12px; margin-left:7px; }
 .r { text-align:right; }
@@ -266,6 +268,7 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
         <div class="card-b" id="form">
           <label class="f"><span>일자</span><input class="fin" type="date" id="f-date" /></label>
           <div class="f"><span>종목</span><div class="chips" id="chips"></div></div>
+          <div class="f"><span>태그 <em style="font-style:normal;color:var(--dimmer)">(선택, 여러 개 가능)</em></span><div class="chips" id="tagchips"></div></div>
           <label class="f"><span>메모</span>
             <textarea class="fin" id="f-memo" rows="1" placeholder="배팅 내역" autocomplete="off"></textarea>
           </label>
@@ -375,7 +378,7 @@ function toast(msg){
 /* ---------------- 상태 ---------------- */
 let bets = [];
 let from = monthRange(0)[0], to = monthRange(0)[1];
-let cat = 'LOL', status = 'pending', editId = null, busy = false;
+let cat = 'LOL', tags = [], status = 'pending', editId = null, busy = false;
 
 /* ---------------- 로그인 ---------------- */
 $('do-login').addEventListener('click', () => auth('in'));
@@ -466,16 +469,33 @@ $('to').addEventListener('change', e => { to = e.target.value; clearSeg(); rende
 const clearSeg = () => [...$('seg').children].forEach(x => x.classList.remove('on'));
 
 /* ---------------- 폼 ---------------- */
+function catList(){
+  return [...new Set([...BASE_CATS, ...bets.map(b=>b.cat)])].filter(Boolean);
+}
 function drawChips(){
-  const all = [...new Set([...BASE_CATS, ...bets.map(b=>b.cat)])].filter(Boolean);
-  $('chips').innerHTML = all.map(c => {
+  $('chips').innerHTML = catList().map(c => {
     const st = c === cat ? `style="color:${catColor(c)};border-color:${catColor(c)};background:${tint(catColor(c),.12)}"` : '';
     return `<button class="chip" data-c="${esc(c)}" ${st}>${esc(c)}</button>`;
   }).join('');
+  drawTagChips();
 }
 $('chips').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   cat = b.dataset.c; drawChips();
+});
+
+function drawTagChips(){
+  $('tagchips').innerHTML = catList().map(c => {
+    const on = tags.includes(c);
+    const st = on ? `style="color:${catColor(c)};border-color:${catColor(c)};background:${tint(catColor(c),.12)}"` : '';
+    return `<button class="chip" data-c="${esc(c)}" ${st}>${esc(c)}</button>`;
+  }).join('');
+}
+$('tagchips').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  const c = b.dataset.c;
+  tags = tags.includes(c) ? tags.filter(t => t !== c) : [...tags, c];
+  drawTagChips();
 });
 
 const SCOLOR = { hit:'var(--up)', miss:'var(--down)', pending:'var(--wait)' };
@@ -550,7 +570,7 @@ async function save(){
   const odds = Number($('f-odds').value) || 0;
   const payout = Number($('f-payout').value) || Math.round(stake * odds);
   const rec = {
-    date: $('f-date').value || today(), cat: cat || '기타', memo: $('f-memo').value.trim(),
+    date: $('f-date').value || today(), cat: cat || '기타', tags, memo: $('f-memo').value.trim(),
     stake, odds, expect: payout, payout: status === 'hit' ? payout : 0, status
   };
   busy = true; $('save').disabled = true;
@@ -565,7 +585,7 @@ async function save(){
 }
 
 function resetForm(){
-  editId = null; status = 'pending';
+  editId = null; status = 'pending'; tags = [];
   $('f-memo').value = ''; $('f-stake').value = ''; $('f-odds').value = ''; $('f-payout').value = '';
   $('form-title').textContent = '빠른 입력'; $('form-hint').textContent = 'Enter로 저장';
   $('save').textContent = '기록 추가'; $('cancel').classList.add('hidden');
@@ -574,7 +594,7 @@ function resetForm(){
 
 function edit(id){
   const b = bets.find(x => x.id === id); if(!b) return;
-  editId = id; cat = b.cat; status = b.status;
+  editId = id; cat = b.cat; tags = Array.isArray(b.tags) ? [...b.tags] : []; status = b.status;
   $('f-date').value = b.date; $('f-memo').value = b.memo || '';
   $('f-stake').value = b.stake; $('f-odds').value = b.odds || '';
   $('f-payout').value = b.payout || b.expect || '';
@@ -713,8 +733,10 @@ function drawList(view){
       const right = b.status === 'pending'
         ? `<span class="settle"><button class="hit" data-act="hit" data-id="${b.id}">적중</button><button class="miss" data-act="miss" data-id="${b.id}">미적중</button></span>`
         : `<span class="r num" style="color:${pnl(p)};font-weight:600">${signed(p)}</span>`;
+      const tagBadges = (b.tags || []).filter(t => t !== b.cat)
+        .map(t => `<span class="tag sub-tag" style="color:${catColor(t)};background:${tint(catColor(t),.13)}">${esc(t)}</span>`).join('');
       return `<div class="row">
-        <span><span class="tag" style="color:${catColor(b.cat)};background:${tint(catColor(b.cat),.13)}">${esc(b.cat)}</span></span>
+        <span><span class="tag" style="color:${catColor(b.cat)};background:${tint(catColor(b.cat),.13)}">${esc(b.cat)}</span>${tagBadges}</span>
         <span class="memo">${b.memo ? esc(b.memo) : '<span style="color:var(--dimmer)">메모 없음</span>'}${b.odds ? `<i class="num">${Number(b.odds).toFixed(2)}배</i>` : ''}</span>
         <span class="r sub num hide-sm">${won(b.stake)}</span>
         <span class="r sub num hide-sm">${b.status === 'pending' ? '—' : won(b.payout)}</span>
@@ -759,7 +781,7 @@ $('file').addEventListener('change', e => {
       const data = JSON.parse(r.result);
       if (!Array.isArray(data)) return toast('토계부 백업 파일이 아닙니다.');
       const rows = data.map(d => ({
-        date: d.date, cat: d.cat || '기타', memo: d.memo || '',
+        date: d.date, cat: d.cat || '기타', tags: Array.isArray(d.tags) ? d.tags : [], memo: d.memo || '',
         stake: Number(d.stake) || 0, odds: Number(d.odds) || 0,
         expect: Number(d.expect) || 0, payout: Number(d.payout) || 0,
         status: ['hit','miss','pending'].includes(d.status) ? d.status : 'pending'

@@ -96,7 +96,13 @@ input:focus { outline:none; border-color:var(--key); }
 .meta { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:14px; font-size:13px; color:var(--dim); }
 .meta b { color:var(--text); font-weight:600; }
 .chart { height:132px; min-width:0; }
-.chart svg { display:block; width:100%; height:112px; }
+.chart-inner { position:relative; }
+.chart svg { display:block; width:100%; height:112px; touch-action:pan-y; cursor:crosshair; }
+.chart-tip { position:absolute; transform:translate(-50%,-100%); background:var(--panel-2); border:1px solid var(--line-2);
+             border-radius:7px; padding:5px 9px; font-size:11.5px; white-space:nowrap; pointer-events:none;
+             display:flex; flex-direction:column; align-items:center; gap:1px; box-shadow:0 4px 10px rgba(0,0,0,.25); }
+.chart-tip b { font-size:12.5px; }
+.chart-tip span { color:var(--dimmer); font-size:10.5px; }
 .chart .xlab { display:flex; justify-content:space-between; font-size:11px; color:var(--dimmer); margin-top:4px; }
 .chart .blank { height:132px; display:flex; align-items:center; justify-content:center; color:var(--dimmer);
                 font-size:13px; border:1px dashed var(--line); border-radius:10px; text-align:center; padding:0 12px; }
@@ -789,19 +795,56 @@ function drawChart(view, profit){
   const line = pts.map((p,i) => (i?'L':'M') + x(i).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
   const zero = y(0), col = profit >= 0 ? '#3fbf7f' : '#e0605f';
   $('chart').innerHTML = `
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="누적 수익 곡선">
-      <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${col}" stop-opacity=".22"/>
-        <stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
-      <line x1="0" y1="${zero.toFixed(1)}" x2="${W}" y2="${zero.toFixed(1)}" stroke="#29323d"
-            stroke-width="1" vector-effect="non-scaling-stroke" stroke-dasharray="3 4"/>
-      <path d="${line} L ${x(pts.length-1).toFixed(1)} ${zero.toFixed(1)} L ${x(0).toFixed(1)} ${zero.toFixed(1)} Z" fill="url(#g)"/>
-      <path d="${line}" fill="none" stroke="${col}" stroke-width="1.75" vector-effect="non-scaling-stroke"
-            stroke-linejoin="round" stroke-linecap="round"/>
-    </svg>
+    <div class="chart-inner" id="chartInner">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="누적 수익 곡선" id="chartSvg">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${col}" stop-opacity=".22"/>
+          <stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+        <line x1="0" y1="${zero.toFixed(1)}" x2="${W}" y2="${zero.toFixed(1)}" stroke="#29323d"
+              stroke-width="1" vector-effect="non-scaling-stroke" stroke-dasharray="3 4"/>
+        <path d="${line} L ${x(pts.length-1).toFixed(1)} ${zero.toFixed(1)} L ${x(0).toFixed(1)} ${zero.toFixed(1)} Z" fill="url(#g)"/>
+        <path d="${line}" fill="none" stroke="${col}" stroke-width="1.75" vector-effect="non-scaling-stroke"
+              stroke-linejoin="round" stroke-linecap="round"/>
+        <line id="chartGuide" x1="0" y1="0" x2="0" y2="${H}" stroke="var(--line-2)" stroke-width="1"
+              vector-effect="non-scaling-stroke" opacity="0"/>
+        <circle id="chartDot" r="3.5" fill="${col}" stroke="var(--panel)" stroke-width="1.5" opacity="0"/>
+      </svg>
+      <div class="chart-tip hidden" id="chartTip"></div>
+    </div>
     <div class="xlab"><span class="num">${pts[0].d.slice(5).replace('-','/')}</span>
       <span class="num" style="color:${pnl(acc)}">누적 ${signed(acc)}</span>
       <span class="num">${pts[pts.length-1].d.slice(5).replace('-','/')}</span></div>`;
+
+  const svg = $('chartSvg'), guide = $('chartGuide'), dot = $('chartDot'), tip = $('chartTip');
+  function pick(clientX){
+    const rect = svg.getBoundingClientRect();
+    const relX = (clientX - rect.left) / rect.width * W;
+    let idx = 0, best = Infinity;
+    pts.forEach((p,i) => { const d = Math.abs(x(i) - relX); if (d < best) { best = d; idx = i; } });
+    return idx;
+  }
+  function showTip(idx){
+    const p = pts[idx];
+    guide.setAttribute('x1', x(idx)); guide.setAttribute('x2', x(idx)); guide.setAttribute('opacity', 1);
+    dot.setAttribute('cx', x(idx)); dot.setAttribute('cy', y(p.v)); dot.setAttribute('opacity', 1);
+    tip.innerHTML = `<b class="num" style="color:${pnl(p.v)}">${signed(p.v)}</b><span class="num">${p.d.slice(5).replace('-','/')}</span>`;
+    tip.classList.remove('hidden');
+    const rect = svg.getBoundingClientRect();
+    const px = rect.width * (x(idx) / W);
+    const py = rect.height * (y(p.v) / H);
+    const tw = tip.offsetWidth || 70;
+    const left = Math.min(Math.max(px, tw / 2 + 4), rect.width - tw / 2 - 4);
+    tip.style.left = left + 'px';
+    tip.style.top = Math.max(py - 12, 4) + 'px';
+  }
+  function hideTip(){
+    guide.setAttribute('opacity', 0); dot.setAttribute('opacity', 0); tip.classList.add('hidden');
+  }
+  svg.addEventListener('mousemove', e => showTip(pick(e.clientX)));
+  svg.addEventListener('mouseleave', hideTip);
+  svg.addEventListener('touchstart', e => { if (e.touches[0]) showTip(pick(e.touches[0].clientX)); }, { passive:true });
+  svg.addEventListener('touchmove', e => { if (e.touches[0]) showTip(pick(e.touches[0].clientX)); }, { passive:true });
+  svg.addEventListener('touchend', hideTip);
 }
 
 function drawCats(view){

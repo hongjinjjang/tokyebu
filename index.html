@@ -150,8 +150,9 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
 .cancel { width:100%; border:0; background:transparent; color:var(--dim); padding:8px 0; font-size:12.5px; margin-top:4px; }
 
 /* 종목별 */
-.cat { padding:11px 18px; border-bottom:1px solid var(--line); }
+.cat { padding:11px 18px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .12s; }
 .cat:last-child { border-bottom:0; }
+.cat.on { background:var(--panel-2); box-shadow:inset 3px 0 0 var(--key); }
 .cat-r { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
 .cat-n { font-size:13.5px; font-weight:600; }
 .cat-s { font-size:12px; color:var(--dimmer); margin-top:3px; }
@@ -211,6 +212,7 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
   .chip:hover { border-color:var(--line-2); }
   .quick button:hover { color:var(--text); border-color:var(--line-2); }
   .settle button:hover { border-color:currentColor; }
+  .cat:hover { background:rgba(255,255,255,.03); }
 }
 @media (max-width: 980px) {
   .grid { grid-template-columns:1fr; }
@@ -620,6 +622,13 @@ $('tagfilter').addEventListener('click', e => {
   render();
 });
 
+$('cats').addEventListener('click', e => {
+  const b = e.target.closest('.cat'); if(!b) return;
+  const c = b.dataset.cat;
+  tagFilter = (tagFilter.length === 1 && tagFilter[0] === c) ? [] : [c];
+  render();
+});
+
 $('search').addEventListener('input', e => { search = e.target.value.trim(); render(); });
 $('sortby').addEventListener('change', e => { sortBy = e.target.value; render(); });
 
@@ -931,7 +940,7 @@ function drawCats(view){
   if (!list.length) { $('cats').innerHTML = '<div class="blank" style="padding:28px 20px">기록이 없습니다</div>'; return; }
   const maxS = Math.max(1, ...list.map(c => c.staked));
   $('cats').innerHTML = list.map(c => `
-    <div class="cat">
+    <div class="cat${tagFilter.length === 1 && tagFilter[0] === c.cat ? ' on' : ''}" data-cat="${esc(c.cat)}">
       <div class="cat-r">
         <span class="cat-n" style="color:${catColor(c.cat)}">${esc(c.cat)}</span>
         <span class="num" style="font-weight:600;color:${pnl(c.profit)}">${signed(c.profit)}</span>

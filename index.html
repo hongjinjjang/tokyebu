@@ -111,6 +111,7 @@ input:focus { outline:none; border-color:var(--key); }
 .grid { display:grid; grid-template-columns:352px 1fr; gap:22px; align-items:start; }
 .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
 .card + .card { margin-top:22px; }
+.cat-card { position:sticky; top:16px; max-height:calc(100vh - 32px); overflow-y:auto; }
 .card-h { display:flex; align-items:center; justify-content:space-between; padding:15px 18px; border-bottom:1px solid var(--line); }
 .card-h h2 { margin:0; font-size:14px; font-weight:600; letter-spacing:-.02em; }
 .card-h em { font-style:normal; font-size:12px; color:var(--dimmer); }
@@ -217,6 +218,7 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
 @media (max-width: 980px) {
   .grid { grid-template-columns:1fr; }
   .hero { grid-template-columns:1fr; gap:16px; padding:20px; }
+  .cat-card { position:static; max-height:none; overflow-y:visible; }
 }
 @media (max-width: 620px) {
   .wrap { padding:0 12px 60px; }
@@ -351,7 +353,7 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
         </div>
       </div>
 
-      <div class="card">
+      <div class="card cat-card">
         <div class="card-h"><h2>종목별</h2><em>기간 내</em></div>
         <div id="cats"></div>
       </div>

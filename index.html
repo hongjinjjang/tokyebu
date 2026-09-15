@@ -187,6 +187,16 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
 .blank { padding:56px 20px; text-align:center; color:var(--dimmer); font-size:13.5px; line-height:1.9; }
 .blank code { background:var(--panel-2); padding:2px 6px; border-radius:4px; color:var(--dim); }
 
+/* 수정 팝업 */
+.modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:90;
+                   opacity:0; pointer-events:none; transition:opacity .15s; }
+.modal-backdrop.show { opacity:1; pointer-events:auto; }
+.card.as-modal {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  z-index:100; width:min(420px, calc(100vw - 32px)); max-height:calc(100vh - 48px);
+  overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.5); margin:0;
+}
+
 /* 토스트 */
 .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(22px + env(safe-area-inset-bottom));
          background:var(--panel-2); border:1px solid var(--line-2); color:var(--text);
@@ -300,7 +310,7 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
 
   <div class="grid">
     <div>
-      <div class="card">
+      <div class="card" id="form-card">
         <div class="card-h"><h2 id="form-title">빠른 입력</h2><em id="form-hint">Enter로 저장</em></div>
         <div class="card-b" id="form">
           <label class="f"><span>일자</span><input class="fin" type="date" id="f-date" /></label>
@@ -364,6 +374,7 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
   </div>
 </div>
 
+<div class="modal-backdrop hidden" id="modal-backdrop"></div>
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -709,12 +720,30 @@ async function save(){
   $('f-memo').focus();
 }
 
+function openModal(){
+  $('form-card').classList.add('as-modal');
+  $('modal-backdrop').classList.remove('hidden');
+  $('modal-backdrop').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(){
+  $('form-card').classList.remove('as-modal');
+  $('modal-backdrop').classList.remove('show');
+  $('modal-backdrop').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+$('modal-backdrop').addEventListener('click', () => resetForm());
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('form-card').classList.contains('as-modal')) resetForm();
+});
+
 function resetForm(){
   editId = null; status = 'pending'; tags = [];
   $('f-memo').value = ''; $('f-stake').value = ''; $('f-odds').value = ''; $('f-payout').value = '';
   $('form-title').textContent = '빠른 입력'; $('form-hint').textContent = 'Enter로 저장';
   $('save').textContent = '기록 추가'; $('cancel').classList.add('hidden');
   drawStatus(); drawCalc(); drawChips(); growMemo();
+  closeModal();
 }
 
 function edit(id){
@@ -726,7 +755,7 @@ function edit(id){
   $('form-title').textContent = '기록 수정'; $('form-hint').textContent = '수정 중';
   $('save').textContent = '수정 저장'; $('cancel').classList.remove('hidden');
   drawChips(); drawStatus(); drawCalc(); growMemo();
-  window.scrollTo({ top:0, behavior:'smooth' });
+  openModal();
 }
 
 /* ---------------- 목록 조작 ---------------- */

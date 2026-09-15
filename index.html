@@ -69,9 +69,9 @@ button:disabled { opacity:.5; cursor:default; }
 :root[data-theme="light"] .setup code { background:rgba(0,0,0,.06); }
 
 /* 헤더 */
-.top { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 0 24px; }
+.top { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px; padding:20px 0 24px; }
 .brand { display:flex; align-items:baseline; gap:10px; min-width:0; }
-.brand b { font-size:19px; font-weight:700; letter-spacing:-.03em; }
+.brand b { font-size:19px; font-weight:700; letter-spacing:-.03em; white-space:nowrap; }
 .brand span { font-size:12px; color:var(--dimmer); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .tools { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .tools .sep { width:1px; height:18px; background:var(--line); margin:0 2px; }
@@ -180,7 +180,7 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
 .icon { border:0; background:transparent; color:var(--dimmer); padding:5px; line-height:0; border-radius:5px; }
 .icon:hover { color:var(--text); background:var(--panel-2); }
 .settle { display:flex; gap:5px; justify-content:flex-end; }
-.settle button { border:1px solid var(--line); background:transparent; padding:5px 10px; font-size:12px; }
+.settle button { border:1px solid var(--line); background:transparent; padding:5px 10px; font-size:12px; white-space:nowrap; }
 .settle button.hit { color:var(--up); }
 .settle button.miss { color:var(--down); }
 .blank { padding:56px 20px; text-align:center; color:var(--dimmer); font-size:13.5px; line-height:1.9; }
@@ -207,8 +207,12 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
 }
 @media (max-width: 620px) {
   .wrap { padding:0 12px 60px; }
-  .row { grid-template-columns:56px 1fr 100px; gap:8px; padding:12px 14px; }
+  .top { flex-direction:column; align-items:flex-start; padding-right:44px; }
+  .tools { width:100%; }
+  .row { grid-template-columns:56px 1fr 112px; gap:8px; padding:12px 14px; }
   .row-tags { padding-left:14px; }
+  .settle { gap:4px; }
+  .settle button { padding:5px 4px; font-size:11px; }
   .hide-sm { display:none; }
   .total { font-size:36px; }
   .card-b { padding:14px; }

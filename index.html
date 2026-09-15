@@ -505,6 +505,7 @@ async function start(){
 }
 
 async function reload(){
+  const scrollY = window.scrollY;
   const PAGE = 1000;
   let all = [], from = 0;
   while (true) {
@@ -518,6 +519,7 @@ async function reload(){
   }
   bets = all;
   render();
+  window.scrollTo(0, scrollY);
 }
 
 /* ---------------- 기간 ---------------- */
@@ -709,6 +711,7 @@ async function save(){
     date: $('f-date').value || today(), cat: cat || '기타', tags, memo: $('f-memo').value.trim(),
     stake, odds, expect: payout, payout: status === 'hit' ? payout : 0, status
   };
+  const wasEdit = !!editId;
   busy = true; $('save').disabled = true;
   const { error } = editId
     ? await supa.from('bets').update(rec).eq('id', editId)
@@ -717,20 +720,27 @@ async function save(){
   if (error) { toast('저장 실패: ' + error.message); return; }
   resetForm();
   await reload();
-  $('f-memo').focus();
+  if (!wasEdit) $('f-memo').focus();
 }
 
+let modalScrollY = 0;
 function openModal(){
+  modalScrollY = window.scrollY;
   $('form-card').classList.add('as-modal');
   $('modal-backdrop').classList.remove('hidden');
   $('modal-backdrop').classList.add('show');
-  document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${modalScrollY}px`;
+  document.body.style.width = '100%';
 }
 function closeModal(){
   $('form-card').classList.remove('as-modal');
   $('modal-backdrop').classList.remove('show');
   $('modal-backdrop').classList.add('hidden');
-  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, modalScrollY);
 }
 $('modal-backdrop').addEventListener('click', () => resetForm());
 document.addEventListener('keydown', e => {

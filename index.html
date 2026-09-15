@@ -137,6 +137,7 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
 .chips { display:flex; flex-wrap:wrap; gap:5px; }
 .chip { border:1px solid var(--line); background:transparent; color:var(--dim); padding:6px 11px; font-size:12.5px; border-radius:20px; }
 .chip-add { border-style:dashed; color:var(--dimmer); }
+.chip-toggle { color:var(--key); border-color:var(--key); }
 .filterbar { display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin-bottom:18px; }
 .filterbar-label { font-size:12px; color:var(--dimmer); white-space:nowrap; }
 .chips-sm .chip { padding:4px 9px; font-size:11.5px; }
@@ -528,21 +529,43 @@ const clearSeg = () => [...$('seg').children].forEach(x => x.classList.remove('o
 function catList(){
   return [...new Set([...BASE_CATS, ...bets.map(b=>b.cat), cat, ...tags])].filter(Boolean);
 }
+function usageFreq(){
+  const freq = {};
+  bets.forEach(b => {
+    if (b.cat) freq[b.cat] = (freq[b.cat]||0) + 1;
+    (b.tags||[]).forEach(t => freq[t] = (freq[t]||0) + 1);
+  });
+  return freq;
+}
+function rankByUsage(list){
+  const freq = usageFreq();
+  return [...list].sort((a,b) => (freq[b]||0) - (freq[a]||0));
+}
+const CHIP_TOP_N = 8;
 const ADD_CHIP = '<button class="chip chip-add" data-c="__new__">+ 추가</button>';
 function askNewName(label){
   const name = prompt(`추가할 ${label} 이름을 입력하세요 (최대 8자)`);
   if (!name) return null;
   return name.trim().slice(0, 8) || null;
 }
+function chipBtn(c, active){
+  const st = active ? `style="color:${catColor(c)};border-color:${catColor(c)};background:${tint(catColor(c),.12)}"` : '';
+  return `<button class="chip" data-c="${esc(c)}" ${st}>${esc(c)}</button>`;
+}
+let chipsExpanded = false, tagChipsExpanded = false;
 function drawChips(){
-  $('chips').innerHTML = catList().map(c => {
-    const st = c === cat ? `style="color:${catColor(c)};border-color:${catColor(c)};background:${tint(catColor(c),.12)}"` : '';
-    return `<button class="chip" data-c="${esc(c)}" ${st}>${esc(c)}</button>`;
-  }).join('') + ADD_CHIP;
+  const ranked = rankByUsage(catList());
+  const top = ranked.slice(0, CHIP_TOP_N);
+  const shown = chipsExpanded ? ranked : [...new Set([cat, ...top])];
+  const hidden = ranked.length - shown.length;
+  const toggle = ranked.length > CHIP_TOP_N
+    ? `<button class="chip chip-toggle" data-toggle="1">${chipsExpanded ? '접기 ▲' : `더보기 +${Math.max(hidden,0)} ▾`}</button>` : '';
+  $('chips').innerHTML = shown.map(c => chipBtn(c, c === cat)).join('') + toggle + ADD_CHIP;
   drawTagChips();
 }
 $('chips').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
+  if (b.dataset.toggle) { chipsExpanded = !chipsExpanded; drawChips(); return; }
   if (b.dataset.c === '__new__') {
     const name = askNewName('종목');
     if (name) { cat = name; drawChips(); }
@@ -552,11 +575,13 @@ $('chips').addEventListener('click', e => {
 });
 
 function drawTagChips(){
-  $('tagchips').innerHTML = catList().map(c => {
-    const on = tags.includes(c);
-    const st = on ? `style="color:${catColor(c)};border-color:${catColor(c)};background:${tint(catColor(c),.12)}"` : '';
-    return `<button class="chip" data-c="${esc(c)}" ${st}>${esc(c)}</button>`;
-  }).join('') + ADD_CHIP;
+  const ranked = rankByUsage(catList());
+  const top = ranked.slice(0, CHIP_TOP_N);
+  const shown = tagChipsExpanded ? ranked : [...new Set([...tags, ...top])];
+  const hidden = ranked.length - shown.length;
+  const toggle = ranked.length > CHIP_TOP_N
+    ? `<button class="chip chip-toggle" data-toggle="1">${tagChipsExpanded ? '접기 ▲' : `더보기 +${Math.max(hidden,0)} ▾`}</button>` : '';
+  $('tagchips').innerHTML = shown.map(c => chipBtn(c, tags.includes(c))).join('') + toggle + ADD_CHIP;
 }
 function periodTagList(){
   const set = new Set();
@@ -587,6 +612,7 @@ $('sortby').addEventListener('change', e => { sortBy = e.target.value; render();
 
 $('tagchips').addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
+  if (b.dataset.toggle) { tagChipsExpanded = !tagChipsExpanded; drawTagChips(); return; }
   if (b.dataset.c === '__new__') {
     const name = askNewName('태그');
     if (name && !tags.includes(name)) { tags = [...tags, name]; drawTagChips(); }

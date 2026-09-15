@@ -109,6 +109,7 @@ input:focus { outline:none; border-color:var(--key); }
 
 /* 그리드 */
 .grid { display:grid; grid-template-columns:352px 1fr; gap:22px; align-items:start; }
+.grid > div:first-child { align-self:stretch; }
 .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
 .card + .card { margin-top:22px; }
 .cat-card { position:sticky; top:16px; max-height:calc(100vh - 32px); overflow-y:auto; }

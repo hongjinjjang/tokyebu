@@ -168,7 +168,7 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
 .day.flash, .row-item.flash { animation:flash-hl 1.2s ease-out; }
 @keyframes flash-hl { from { background:rgba(100,120,255,.28); } to { background:transparent; } }
 .row-item:last-child { border-bottom:0; }
-.row-item.has-tags { cursor:pointer; }
+.row-item { cursor:pointer; }
 .row { display:grid; grid-template-columns:68px 1fr 92px 92px 104px 62px; align-items:center; gap:10px;
        padding:11px 18px; font-size:13.5px; }
 .row > span:first-child { display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
@@ -776,8 +776,13 @@ function edit(id){
 $('list').addEventListener('click', async e => {
   const b = e.target.closest('button[data-act]');
   if (!b) {
-    const item = e.target.closest('.row-item.has-tags');
-    if (item) item.querySelector('.row-tags').classList.toggle('hidden');
+    const moreBadge = e.target.closest('.tag-more');
+    if (moreBadge) {
+      moreBadge.closest('.row-item')?.querySelector('.row-tags')?.classList.toggle('hidden');
+      return;
+    }
+    const item = e.target.closest('.row-item');
+    if (item) edit(item.dataset.id);
     return;
   }
   const id = b.dataset.id, act = b.dataset.act;
@@ -970,7 +975,7 @@ function rowHtml(b, showDate){
   const tagBadges = extraTags
     .map(t => `<span class="tag sub-tag" style="${tagStyle(t)}">${esc(t)}</span>`).join('');
   const dateBadge = showDate ? `<i class="num" style="color:var(--dimmer);margin-right:7px;font-style:normal">${b.date.slice(5).replace('-','/')}</i>` : '';
-  return `<div class="row-item${extraTags.length ? ' has-tags' : ''}" data-date="${b.date}">
+  return `<div class="row-item${extraTags.length ? ' has-tags' : ''}" data-date="${b.date}" data-id="${b.id}">
     <div class="row">
       <span><span class="tag" style="${tagStyle(b.cat)}">${esc(b.cat)}</span>${moreBadge}</span>
       <span class="memo">${dateBadge}${b.memo ? esc(b.memo) : '<span style="color:var(--dimmer)">메모 없음</span>'}${b.odds ? `<i class="num">${Number(b.odds).toFixed(2)}배</i>` : ''}</span>

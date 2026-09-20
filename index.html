@@ -104,6 +104,9 @@ input:focus { outline:none; border-color:var(--key); }
 .chart-tip b { font-size:12.5px; }
 .chart-tip span { color:var(--dimmer); font-size:10.5px; }
 .chart .xlab { display:flex; justify-content:space-between; font-size:11px; color:var(--dimmer); margin-top:4px; }
+.chart-glabel, .chart-dlabel { position:absolute; font-size:9px; color:var(--dimmer); pointer-events:none; white-space:nowrap; }
+.chart-glabel { left:3px; transform:translateY(-50%); }
+.chart-dlabel { top:3px; transform:translateX(-50%); }
 .chart .blank { height:132px; display:flex; align-items:center; justify-content:center; color:var(--dimmer);
                 font-size:13px; border:1px dashed var(--line); border-radius:10px; text-align:center; padding:0 12px; }
 
@@ -438,6 +441,10 @@ const today = () => iso(new Date());
 const won = n => Number(n||0).toLocaleString('ko-KR');
 const signed = n => (n>0?'+':n<0?'−':'') + won(Math.abs(n));
 const pnl = n => n>0?'var(--up)':n<0?'var(--down)':'var(--dim)';
+const compactWon = n => { const a = Math.abs(n);
+  const v = a >= 100000000 ? (a/100000000).toFixed(a % 100000000 ? 1 : 0) + '억'
+    : a >= 10000 ? Math.round(a/10000) + '만' : won(a);
+  return (n>0?'+':n<0?'−':'') + v; };
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const profitOf = b => b.status==='hit' ? (b.payout||0)-b.stake : b.status==='miss' ? -b.stake : 0;
 function monthRange(off){ const n=new Date();
@@ -874,12 +881,53 @@ function drawChart(view, profit, done){
   const y = v => H - PAD - (v - min) / span * (H - PAD*2);
   const line = pts.map((p,i) => (i?'L':'M') + x(i).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
   const zero = y(0), col = profit >= 0 ? '#3fbf7f' : '#e0605f';
+
+  function niceStep(rawSpan, targetCount){
+    const rough = rawSpan / targetCount;
+    const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+    const norm = rough / mag;
+    return (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  }
+  const vStep = niceStep(span, 3);
+  const gridVals = [];
+  for (let v = Math.ceil(min / vStep) * vStep; v <= max + 1e-6; v += vStep) {
+    if (Math.round(v) !== 0) gridVals.push(Math.round(v));
+  }
+  const hGridSvg = gridVals.map(v => `<line x1="0" y1="${y(v).toFixed(1)}" x2="${W}" y2="${y(v).toFixed(1)}"
+        stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".6"/>`).join('');
+  const hGridLabels = gridVals.map(v => {
+    const top = Math.min(Math.max(y(v) / H * 100, 8), 92);
+    return `<span class="chart-glabel" style="top:${top.toFixed(1)}%">${compactWon(v)}</span>`;
+  }).join('');
+
+  const spanDays = Math.round((new Date(pts[pts.length-1].d) - new Date(pts[0].d)) / 86400000);
+  const dateGrid = [];
+  if (spanDays > 45) {
+    let prevMonth = pts[0].d.slice(0, 7);
+    pts.forEach((p,i) => { const m = p.d.slice(0, 7);
+      if (m !== prevMonth) { dateGrid.push({ i, label: (+m.slice(5)) + '월' }); prevMonth = m; } });
+  } else if (spanDays > 9) {
+    const start = new Date(pts[0].d);
+    let lastWeek = 0;
+    pts.forEach((p,i) => { const wk = Math.floor((new Date(p.d) - start) / 604800000);
+      if (wk !== lastWeek) { dateGrid.push({ i, label: p.d.slice(5).replace('-','/') }); lastWeek = wk; } });
+  } else {
+    pts.forEach((p,i) => { if (i > 0) dateGrid.push({ i, label: p.d.slice(5).replace('-','/') }); });
+  }
+  const vGridSvg = dateGrid.map(g => `<line x1="${x(g.i).toFixed(1)}" y1="0" x2="${x(g.i).toFixed(1)}" y2="${H}"
+        stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".6"/>`).join('');
+  const vGridLabels = dateGrid.map(g => {
+    const left = Math.min(Math.max(x(g.i) / W * 100, 4), 96);
+    return `<span class="chart-dlabel" style="left:${left.toFixed(1)}%">${g.label}</span>`;
+  }).join('');
+
   $('chart').innerHTML = `
     <div class="chart-inner">
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="누적 수익 곡선" id="chartSvg">
         <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="${col}" stop-opacity=".22"/>
           <stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+        ${hGridSvg}${vGridSvg}
         <line x1="0" y1="${zero.toFixed(1)}" x2="${W}" y2="${zero.toFixed(1)}" stroke="#29323d"
               stroke-width="1" vector-effect="non-scaling-stroke" stroke-dasharray="3 4"/>
         <path d="${line} L ${x(pts.length-1).toFixed(1)} ${zero.toFixed(1)} L ${x(0).toFixed(1)} ${zero.toFixed(1)} Z" fill="url(#g)"/>
@@ -889,6 +937,7 @@ function drawChart(view, profit, done){
               vector-effect="non-scaling-stroke" opacity="0"/>
         <circle id="chartDot" r="3.5" fill="${col}" stroke="var(--panel)" stroke-width="1.5" opacity="0"/>
       </svg>
+      ${hGridLabels}${vGridLabels}
       <div class="chart-tip hidden" id="chartTip"></div>
     </div>
     <div class="xlab"><span class="num">${pts[0].d.slice(5).replace('-','/')}</span>

@@ -103,6 +103,7 @@ input:focus { outline:none; border-color:var(--key); }
              display:flex; flex-direction:column; align-items:center; gap:1px; box-shadow:0 4px 10px rgba(0,0,0,.25); }
 .chart-tip b { font-size:12.5px; }
 .chart-tip span { color:var(--dimmer); font-size:10.5px; }
+.chart-tip .tip-row { display:flex; justify-content:space-between; gap:12px; width:100%; }
 .chart .xlab { display:flex; justify-content:space-between; font-size:11px; color:var(--dimmer); margin-top:4px; }
 .chart-glabel, .chart-dlabel { position:absolute; font-size:9px; color:var(--dimmer); pointer-events:none; white-space:nowrap; }
 .chart-glabel { left:3px; transform:translateY(-50%); }
@@ -873,7 +874,7 @@ function drawChart(view, profit, done){
     return;
   }
   let acc = 0;
-  const pts = keys.map(d => { acc += byDay[d]; return { d, v: acc }; });
+  const pts = keys.map(d => { acc += byDay[d]; return { d, v: acc, day: byDay[d] }; });
   const W = 600, H = 112, PAD = 8;
   const vs = pts.map(p => p.v).concat([0]);
   const min = Math.min(...vs), max = Math.max(...vs), span = (max-min) || 1;
@@ -956,7 +957,9 @@ function drawChart(view, profit, done){
     const p = pts[idx];
     guide.setAttribute('x1', x(idx)); guide.setAttribute('x2', x(idx)); guide.setAttribute('opacity', 1);
     dot.setAttribute('cx', x(idx)); dot.setAttribute('cy', y(p.v)); dot.setAttribute('opacity', 1);
-    tip.innerHTML = `<b class="num" style="color:${pnl(p.v)}">${signed(p.v)}</b><span class="num">${p.d.slice(5).replace('-','/')}</span>`;
+    tip.innerHTML = `<span class="num">${p.d.slice(5).replace('-','/')}</span>
+      <span class="tip-row">당일 <b class="num" style="color:${pnl(p.day)}">${signed(p.day)}원</b></span>
+      <span class="tip-row">누적 <b class="num" style="color:${pnl(p.v)}">${signed(p.v)}원</b></span>`;
     tip.classList.remove('hidden');
     const rect = svg.getBoundingClientRect();
     const px = rect.width * (x(idx) / W);
@@ -964,7 +967,10 @@ function drawChart(view, profit, done){
     const tw = tip.offsetWidth || 70;
     const left = Math.min(Math.max(px, tw / 2 + 4), rect.width - tw / 2 - 4);
     tip.style.left = left + 'px';
-    tip.style.top = Math.max(py - 12, 4) + 'px';
+    const th = tip.offsetHeight;
+    const above = py - th - 12;
+    tip.style.transform = 'translateX(-50%)';
+    tip.style.top = Math.max(4, above >= 4 ? above : Math.min(py + 12, rect.height - th - 4)) + 'px';
   }
   function hideTip(){
     guide.setAttribute('opacity', 0); dot.setAttribute('opacity', 0); tip.classList.add('hidden');

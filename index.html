@@ -112,18 +112,19 @@ input:focus { outline:none; border-color:var(--key); }
                 font-size:13px; border:1px dashed var(--line); border-radius:10px; text-align:center; padding:0 12px; }
 
 /* 월별 결산 */
-.insight-card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:17px 19px; min-width:0; margin-bottom:22px; }
-.insight-head { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:13px; }
+.insight-card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 18px; min-width:0; margin-bottom:22px; }
+.insight-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }
 .insight-head h2 { margin:0; font-size:14px; font-weight:600; }
-.insight-head span { color:var(--dimmer); font-size:11.5px; }
-.month-list { display:grid; gap:2px; }
-.month-row { display:grid; grid-template-columns:70px minmax(0,1fr) minmax(0,1fr) 64px; gap:8px; align-items:center;
-             padding:8px 4px; border-top:1px solid var(--line); font-size:12px; }
+.insight-head span { color:var(--dimmer); font-size:11.5px; margin-left:5px; }
+.month-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.month-row { min-width:0; display:grid; grid-template-columns:1fr auto; gap:4px 10px; align-items:baseline;
+             padding:10px 12px; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; font-size:12px; }
 .month-row .month-name { font-weight:600; }
 .month-row .month-profit { font-weight:600; text-align:right; }
-.month-row .month-stat { color:var(--dim); text-align:right; }
+.month-row .month-stat { color:var(--dim); font-size:11px; }
+.month-row .month-stat:last-child { text-align:right; }
 .insight-empty { color:var(--dimmer); font-size:12px; padding:8px 0; }
-.month-more { margin-top:10px; }
+.month-more { white-space:nowrap; }
 
 /* 그리드 */
 .grid { display:grid; grid-template-columns:352px 1fr; gap:22px; align-items:start; }
@@ -238,6 +239,7 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
 @media (max-width: 980px) {
   .grid { grid-template-columns:1fr; }
   .hero { grid-template-columns:1fr; gap:16px; padding:20px; }
+  .month-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .cat-card.focused { position:static; max-height:none; overflow-y:visible; }
 }
 @media (max-width: 620px) {
@@ -252,9 +254,8 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
   .total { font-size:36px; }
   .card-b { padding:14px; }
   .day { padding:9px 14px; }
-  .month-row { grid-template-columns:1fr 1fr; gap:2px 8px; font-size:11px; }
-  .month-row .month-profit { font-size:12px; }
-  .month-row .month-stat:nth-child(3) { text-align:left; }
+  .month-list { grid-template-columns:1fr; }
+  .insight-head span { display:none; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
 
@@ -336,9 +337,8 @@ textarea.fin { resize:none; overflow:hidden; display:block; line-height:1.45; ma
   </section>
 
   <section class="insight-card" aria-label="월별 결산">
-    <div class="insight-head"><h2>월별 결산</h2><span>정산된 기록 기준</span></div>
+    <div class="insight-head"><h2>월별 결산 <span>정산된 기록 기준</span></h2><button class="ghost month-more hidden" id="month-more" type="button">전체 월 보기</button></div>
     <div class="month-list" id="month-list"></div>
-    <button class="ghost month-more hidden" id="month-more" type="button">전체 월 보기</button>
   </section>
 
   <div class="grid">
@@ -903,7 +903,7 @@ function drawMonthlySummary(){
     if (b.status === 'hit') m.hit++;
   }
   const entries = [...months].sort((a,b) => b[0].localeCompare(a[0]));
-  const shown = monthsExpanded ? entries : entries.slice(0, 6);
+  const shown = monthsExpanded ? entries : entries.slice(0, 3);
   $('month-list').innerHTML = shown.length ? shown.map(([key,m]) =>
     `<div class="month-row">
       <span class="month-name num">${key.replace('-', '.')}</span>
@@ -911,7 +911,7 @@ function drawMonthlySummary(){
       <span class="month-stat num" title="정산 배팅액">배팅 ${won(m.staked)}원</span>
       <span class="month-stat num" title="적중률">${m.done ? (m.hit / m.done * 100).toFixed(1) : '0.0'}%</span>
     </div>`).join('') : '<div class="insight-empty">아직 기록이 없습니다.</div>';
-  $('month-more').classList.toggle('hidden', entries.length <= 6);
+  $('month-more').classList.toggle('hidden', entries.length <= 3);
   $('month-more').textContent = monthsExpanded ? '접기' : `전체 월 보기 (${entries.length}개월)`;
 }
 
